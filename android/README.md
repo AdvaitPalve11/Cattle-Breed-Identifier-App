@@ -1,33 +1,38 @@
-Android build notes
+Android Build Configuration
 
-This repository made a few project-specific Android toolchain choices to keep builds stable across machines and avoid known issues:
+This Android project uses modern tooling that matches Flutter's recommendations:
 
-- JDK: Use Temurin / Adoptium JDK 17. Example path used here:
-  `C:\Program Files\Eclipse Adoptium\jdk-17.0.16.8-hotspot`
+Toolchain Versions:
+- Android Gradle Plugin (AGP): 8.6.0
+- Kotlin: 2.1.0
+- Gradle: 8.7
+- JDK: 17 (tested with Eclipse Temurin/Adoptium)
 
-- Gradle wrapper: pinned to Gradle 8.7 (see `android/gradle/wrapper/gradle-wrapper.properties`).
+Required Setup:
+1. Install JDK 17 (Eclipse Temurin/Adoptium recommended)
+2. Set Android Studio's Gradle JVM:
+   - File → Settings (Preferences on macOS)
+   - Build, Execution, Deployment → Build Tools → Gradle
+   - Set "Gradle JVM" to JDK 17
+   - Click "Sync Project with Gradle Files"
 
-- Android Gradle Plugin (AGP): plugin version set in `android/settings.gradle.kts` (currently 8.2.1).
+Build Commands:
+```bash
+# Production APK build
+flutter build apk --release
 
-- Jetifier: disabled in `android/gradle.properties` (`android.enableJetifier=false`). Jetifier is legacy AndroidX migration tooling; when possible prefer updating libraries to AndroidX and keep Jetifier off.
-
-- Pin Gradle JVM: `android/gradle.properties` contains `org.gradle.java.home` pointing to the JDK 17 used for builds. This forces Gradle daemons to run with the pinned JDK rather than a possibly incompatible Android Studio JBR.
-
-Troubleshooting quick steps
-
-1. Ensure `JAVA_HOME` points to a JDK 17 installation.
-2. In the project `android` folder, stop Gradle daemons so they pick up the JVM change:
-
-```powershell
-cd android
-.\gradlew.bat --stop
+# Production App Bundle (AAB) build
+flutter build appbundle
 ```
 
-3. Run a build and examine verbose output if necessary:
+Project Configuration:
+- Uses modern Android namespace declarations
+- R8 optimizations enabled with minimal ProGuard rules
+- AndroidX enabled, Jetifier disabled
+- Gradle JVM pinned to JDK 17 via `org.gradle.java.home`
+- Duplicate SDK cmdline-tools removed for clean builds
 
-```powershell
-flutter pub get
-flutter build apk -v
-```
-
-If you need help upgrading AGP/Gradle further for the latest Flutter tooling, I can prepare a PR with tested version bumps and follow-up changes.
+Troubleshooting:
+- If Android Studio shows different JVM warnings than CLI builds, verify the IDE's Gradle JVM matches `org.gradle.java.home` in `gradle.properties`
+- For clean builds, use `./gradlew clean assembleRelease`
+- Check logcat or build output with `--warning-mode all` for detailed diagnostics

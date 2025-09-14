@@ -1,0 +1,20 @@
+{
+  "app_name": "Cattle Breed App",
+  "nav_home": "Home",
+  "nav_about": "About Us",
+  "nav_contact": "Contact Us",
+  "home_instructions": "Upload a photo of a cow or buffalo to identify its breed and get more information.",
+  "upload_text": "Click to upload image",
+  "identify_button": "Identify Breed",
+  "loading_text": "Analyzing image...",
+  "no_image": "Please upload an image first.",
+  "api_error": "An error occurred while analyzing the image. Please try again.",
+  "breed_unknown": "Breed Unknown",
+  "breed_unknown_desc": "The breed could not be identified. Please try again with a clearer photo.",
+  "about_title": "About Us",
+  "about_text": "This application is designed to assist farmers in easily identifying the breed of their cattle. By providing a photo and selecting from a list, they can quickly access detailed information about different Indian cow and buffalo breeds, including their unique characteristics and milk production capabilities. Our mission is to provide simple and accessible information to support the farming community.",
+  "contact_title": "Contact Us",
+  "contact_text1": "If you have any questions, feedback, or need support, please feel free to reach out to us. We are happy to help.",
+  "contact_text2": "Email: contact@cattleapp.com",
+  "contact_text3": "Phone: +91 98765 43210"
+}
