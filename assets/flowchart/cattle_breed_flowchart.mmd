@@ -1,0 +1,8 @@
+---
+config:
+  look: neo
+---
+flowchart TD
+    A["Upload Cattle Image"] --> C["AI Model(TFLite) Prediction"]
+    C --> D["Top-k Breed Suggestions + Confidence"]
+    D --> F["Breed Entry Saved in BPA Database"]

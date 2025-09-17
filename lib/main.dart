@@ -6,6 +6,12 @@ import 'package:logging/logging.dart';
 import 'app_localizations.dart';
 import 'home_screen.dart';
 import 'providers/locale_provider.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+// Import the mobile implementation debug helper. This file is safe to import
+// on non-web platforms. We'll call the debug helper only on mobile platforms.
+import 'services/breed_classifier_mobile.dart' as mobile_impl;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +24,38 @@ Future<void> main() async {
   
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // In debug mode, try to load the interpreter early and log tensor info for diagnostics
+  assert(() {
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      mobile_impl.BreedClassifierMobile.debugTryLoadModel('assets/model/cattle_breed_model.tflite').then((ok) {
+        if (ok) {
+          debugPrint('Debug: model loaded successfully in startup check');
+        } else {
+          debugPrint('Debug: model failed to load in startup check');
+        }
+      });
+    }
+    return true;
+  }());
+
+  // Install global error handlers so we don't end up with a black screen
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+  };
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    // Show a red error box with the error message
+    return Scaffold(
+      body: Center(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: Text('An error occurred: ${details.exceptionAsString()}', style: const TextStyle(color: Colors.red)),
+        ),
+      ),
+    );
+  };
 
   runApp(
     ChangeNotifierProvider(
@@ -43,6 +81,7 @@ class CattleBreedApp extends StatelessWidget {
             primarySwatch: Colors.blue,
             fontFamily: 'Inter',
           ),
+          locale: localeProvider.locale, // Set the current locale
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -50,7 +89,6 @@ class CattleBreedApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: LocaleProvider.supportedLocales,
-          locale: localeProvider.locale,
           home: const HomeScreen(),
         );
       },

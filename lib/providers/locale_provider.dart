@@ -47,7 +47,7 @@ class LocaleProvider extends ChangeNotifier {
   // Set new locale and save to SharedPreferences
   Future<void> setLocale(Locale newLocale) async {
     _log.info('Setting new locale: ${newLocale.languageCode}');
-    if (!supportedLocales.contains(newLocale)) {
+    if (!supportedLocales.any((l) => l.languageCode == newLocale.languageCode)) {
       _log.warning('Locale not supported: ${newLocale.languageCode}');
       return;
     }

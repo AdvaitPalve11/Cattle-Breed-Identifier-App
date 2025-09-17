@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.translate('app_name')),
+        title: Text(AppLocalizations.of(context)?.translate('app_name') ?? 'Cattle Breed App'),
         actions: [
           LanguageSelector(),
         ],
@@ -41,15 +41,15 @@ class _HomeScreenState extends State<HomeScreen> {
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.home),
-            label: AppLocalizations.of(context)!.translate('nav_home'),
+            label: AppLocalizations.of(context)?.translate('nav_home') ?? 'Home',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.info),
-            label: AppLocalizations.of(context)!.translate('nav_about'),
+            label: AppLocalizations.of(context)?.translate('nav_about') ?? 'About',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.contact_page),
-            label: AppLocalizations.of(context)!.translate('nav_contact'),
+            label: AppLocalizations.of(context)?.translate('nav_contact') ?? 'Contact',
           ),
         ],
         currentIndex: _selectedIndex,

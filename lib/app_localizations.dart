@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:logging/logging.dart';
+
+final _log = Logger('AppLocalizations');
 
 class AppLocalizations {
   final Locale locale;
@@ -17,12 +20,23 @@ class AppLocalizations {
 
   Future<bool> load() async {
     try {
-      print('Loading translations for locale: ${locale.languageCode}');
-      // Try to load the locale-specific file
-      final String jsonString = await rootBundle.loadString('assets/i18n/${locale.languageCode}.json');
+      _log.info('Loading translations for locale: ${locale.languageCode}');
+      
+      // Verify the file exists
+      final manifestContent = await rootBundle.loadString('AssetManifest.json');
+      final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+      final String assetPath = 'assets/i18n/${locale.languageCode}.json';
+      
+      if (!manifestMap.containsKey(assetPath)) {
+        _log.severe('Localization file not found in assets: $assetPath');
+        return _loadFallbackLocale();
+      }
+
+      // Load the locale-specific file
+      final String jsonString = await rootBundle.loadString(assetPath);
       
       if (jsonString.isEmpty) {
-        print('Warning: Empty localization file for ${locale.languageCode}');
+        _log.warning('Warning: Empty localization file for ${locale.languageCode}');
         return _loadFallbackLocale();
       }
 
@@ -31,14 +45,14 @@ class AppLocalizations {
         _localizedStrings = jsonMap.map((key, value) {
           return MapEntry(key, value.toString());
         });
-        print('Successfully loaded ${_localizedStrings?.length} translations for ${locale.languageCode}');
+        _log.info('Successfully loaded ${_localizedStrings?.length} translations for ${locale.languageCode}');
         return true;
       } catch (e) {
-        print('Error parsing JSON for ${locale.languageCode}: $e');
+        _log.severe('Error parsing JSON for ${locale.languageCode}: $e');
         return _loadFallbackLocale();
       }
     } catch (e) {
-      print('Error loading locale ${locale.languageCode}: $e');
+      _log.severe('Error loading locale ${locale.languageCode}: $e');
       return _loadFallbackLocale();
     }
   }
@@ -49,26 +63,26 @@ class AppLocalizations {
       if (locale.languageCode != 'en') {
         final String fallbackJson = await rootBundle.loadString('assets/i18n/en.json');
         if (fallbackJson.isEmpty) {
-          print('Error: Fallback locale file (en.json) is empty');
+          _log.severe('Error: Fallback locale file (en.json) is empty');
           return false;
         }
         final Map<String, dynamic> jsonMap = json.decode(fallbackJson);
         _localizedStrings = jsonMap.map((key, value) {
           return MapEntry(key, value.toString());
         });
-        print('Successfully loaded ${_localizedStrings?.length} translations for fallback locale (en)');
+        _log.info('Successfully loaded ${_localizedStrings?.length} translations for fallback locale (en)');
         return true;
       }
       return false;
     } catch (e) {
-      print('Error loading fallback locale: $e');
+      _log.severe('Error loading fallback locale: $e');
       return false;
     }
   }
 
   String translate(String key) {
     if (_localizedStrings == null) {
-      print('Warning: Translations not loaded for ${locale.languageCode}');
+      _log.warning('Warning: Translations not loaded for ${locale.languageCode}');
       return key;
     }
     return _localizedStrings![key] ?? key;

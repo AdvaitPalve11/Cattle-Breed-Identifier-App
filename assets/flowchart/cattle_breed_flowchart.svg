@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Transparent background - removed white rect so SVG background is transparent -->
+
+  <!-- Styles -->
+  <style>
+    .title { font: 700 28px "Segoe UI", Roboto, Arial; fill: #0B3D91 }
+    .box { fill: #F7F9FC; stroke: #0B3D91; stroke-width: 2; rx: 10; }
+    .text { font: 500 16px "Segoe UI", Roboto, Arial; fill: #0B3D91 }
+    .small { font: 400 12px "Segoe UI", Roboto, Arial; fill: #333 }
+    .arrow { stroke: #0B3D91; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+  </style>
+
+  <!-- Arrowhead marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#0B3D91" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="50" text-anchor="middle" class="title">Cattle Breed App - Flowchart</text>
+
+  <!-- Launch -->
+  <g transform="translate(100,110)">
+    <rect x="0" y="0" width="300" height="60" class="box"/>
+    <text x="150" y="36" text-anchor="middle" class="text">App Launch</text>
+  </g>
+
+  <!-- Home Screen -->
+  <g transform="translate(450,110)">
+    <rect x="0" y="0" width="300" height="60" class="box"/>
+    <text x="150" y="36" text-anchor="middle" class="text">Home Screen & Navigation</text>
+  </g>
+
+  <!-- Upload Image -->
+  <g transform="translate(800,110)">
+    <rect x="0" y="0" width="300" height="60" class="box"/>
+    <text x="150" y="36" text-anchor="middle" class="text">Upload / Capture Image</text>
+  </g>
+
+  <!-- Arrow Launch -> Home -> Upload -->
+  <path d="M400 140 L450 140" class="arrow" />
+  <path d="M750 140 L800 140" class="arrow" />
+
+  <!-- Preprocess -->
+  <g transform="translate(450,230)">
+    <rect x="0" y="0" width="300" height="60" class="box"/>
+    <text x="150" y="36" text-anchor="middle" class="text">Preprocess Image (resize, normalize)</text>
+  </g>
+
+  <!-- Model Inference -->
+  <g transform="translate(450,350)">
+    <rect x="0" y="0" width="300" height="60" class="box"/>
+    <text x="150" y="36" text-anchor="middle" class="text">TFLite Model Inference</text>
+  </g>
+
+  <!-- Result -->
+  <g transform="translate(200,470)">
+    <rect x="0" y="0" width="350" height="60" class="box"/>
+    <text x="175" y="36" text-anchor="middle" class="text">Show Result (Breed + Confidence)</text>
+  </g>
+
+  <!-- Error -->
+  <g transform="translate(650,470)">
+    <rect x="0" y="0" width="350" height="60" class="box"/>
+    <text x="175" y="36" text-anchor="middle" class="text">Error / Retry (model init or inference)</text>
+  </g>
+
+  <!-- Arrows down from Inference to Result/Error -->
+  <path d="M600 410 L600 470" class="arrow" />
+  <path d="M600 410 L650 470" class="arrow" />
+
+  <!-- Additional notes -->
+  <text x="600" y="570" text-anchor="middle" class="small">Notes: model stored in assets/model/, labels in labels.txt; retry button on error</text>
+
+</svg>

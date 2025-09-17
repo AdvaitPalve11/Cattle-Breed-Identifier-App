@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // <-- for API key security
+import '../services/breed_classifier.dart';
 import 'app_localizations.dart';
 
 class BreedIdentifierScreen extends StatefulWidget {
@@ -18,235 +16,195 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
   bool _isLoading = false;
   String _resultTitle = '';
   String _resultDescription = '';
+  String? _error;
+  BreedClassifier? _classifier;
 
-  /// Pick image from [gallery] or [camera]
+  @override
+  void initState() {
+    super.initState();
+    _initializeClassifier();
+  }
+
+  Future<void> _initializeClassifier() async {
+    try {
+      _classifier = await BreedClassifier.create(
+        modelPath: 'assets/model/cattle_breed_model.tflite',
+        labelsPath: 'assets/model/labels.txt',
+      );
+    } catch (e) {
+      final trace = StackTrace.current.toString();
+      setState(() {
+        _error = 'Failed to initialize model: $e\n$trace';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _classifier?.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage(ImageSource source) async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: source);
-
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 85);
     if (image == null) return;
-
     setState(() {
       _selectedImage = image;
       _resultTitle = '';
       _resultDescription = '';
+      _error = null;
     });
   }
 
   Future<void> _identifyBreed() async {
-    if (_selectedImage == null) return;
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.translate('no_image'))),
+      );
+      return;
+    }
 
-    setState(() => _isLoading = true);
+    if (_classifier == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Model not initialized')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _resultTitle = '';
+      _resultDescription = '';
+      _error = null;
+    });
 
     try {
-      final bytes = await _selectedImage!.readAsBytes();
-      final base64Image = base64Encode(bytes);
-
-      final mimeType = _selectedImage!.path.toLowerCase().endsWith('.png')
-          ? 'image/png'
-          : 'image/jpeg';
-
-      final apiKey = dotenv.env['GEMINI_API_KEY']; // Load from .env
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception("Missing API key");
-      }
-
-      final Uri apiUrl = Uri.parse(
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        "gemini-2.5-flash-preview-05-20:generateContent?key=$apiKey",
-      );
-
-      final response = await http.post(
-        apiUrl,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text":
-                      "Analyze this image and identify the breed of the Indian cow or buffalo. "
-                          "Provide a one-paragraph description of the breed, including its primary uses "
-                          "(e.g., milk, draught, dual-purpose), physical traits, and common geographical region in India. "
-                          "Start the response with the breed name in bold. If you cannot determine the breed, please respond with 'Breed Unknown'."
-                },
-                {
-                  "inlineData": {
-                    "mimeType": mimeType,
-                    "data": base64Image
-                  }
-                }
-              ]
-            }
-          ]
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final candidates = data['candidates'];
-        if (candidates == null || candidates.isEmpty) {
-          throw Exception('No candidates returned from API');
-        }
-
-        final text =
-            candidates[0]['content']?['parts']?[0]?['text'] ?? 'Breed Unknown';
-
-        setState(() {
-          if (text.trim() == "Breed Unknown") {
-            _resultTitle =
-                AppLocalizations.of(context)!.translate('breed_unknown');
-            _resultDescription =
-                AppLocalizations.of(context)!.translate('breed_unknown_desc');
-          } else {
-            // Extract bold breed name if present (**Breed**)
-            final boldMatch = RegExp(r'\*\*(.*?)\*\*').firstMatch(text);
-            if (boldMatch != null) {
-              _resultTitle = boldMatch.group(1) ?? '';
-              _resultDescription =
-                  text.replaceFirst(boldMatch.group(0)!, '').trim();
-            } else {
-              final parts = text.split('. ');
-              _resultTitle = parts.isNotEmpty ? parts[0] : '';
-              _resultDescription =
-                  parts.length > 1 ? parts.sublist(1).join('. ') : '';
-            }
-          }
-        });
-      } else {
-        throw Exception('Failed with status: ${response.statusCode}');
-      }
+      final file = File(_selectedImage!.path);
+      final result = await _classifier!.classifyImage(file);
+      setState(() {
+        _resultTitle = result['breed'] ?? 'Unknown';
+        _resultDescription = 'Confidence: ${result['confidence']}%';
+      });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.translate('api_error'),
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() {
+        _error = e.toString();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.translate('api_error'))),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Instructions
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            child: Text(
-              AppLocalizations.of(context)!.translate('home_instructions'),
-              style: const TextStyle(fontSize: 16.0),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 20.0),
-
-          // Image upload area
-          GestureDetector(
-            onTap: () => _pickImage(ImageSource.gallery),
-            child: Container(
-              width: double.infinity,
-              height: 150.0,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey,
-                  style: BorderStyle.solid,
-                ),
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: _selectedImage != null
-                  ? Image.file(File(_selectedImage!.path), fit: BoxFit.cover)
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.cloud_upload,
-                            size: 48.0, color: Colors.grey),
-                        const SizedBox(height: 8.0),
-                        Text(AppLocalizations.of(context)!
-                            .translate('upload_text')),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 10.0),
-
-          // Camera & Gallery buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)?.translate('app_name') ?? 'Cattle Breed App'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              IconButton(
-                icon: const Icon(Icons.photo_library),
-                onPressed: () => _pickImage(ImageSource.gallery),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12.0)),
+                child: Text(AppLocalizations.of(context)?.translate('home_instructions') ?? 'Upload a photo of a cow or buffalo to identify its breed and get more information.', textAlign: TextAlign.center),
               ),
-              IconButton(
-                icon: const Icon(Icons.camera_alt),
-                onPressed: () => _pickImage(ImageSource.camera),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20.0),
+              const SizedBox(height: 20),
 
-          // Identify button
-          ElevatedButton(
-            onPressed: _selectedImage != null && !_isLoading
-                ? _identifyBreed
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50.0),
-            ),
-            child: Text(
-                AppLocalizations.of(context)!.translate('identify_button')),
-          ),
-          const SizedBox(height: 20.0),
-
-          // Loading indicator
-          if (_isLoading)
-            Column(
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 10.0),
-                Text(AppLocalizations.of(context)!.translate('loading_text')),
-              ],
-            ),
-
-          // Results
-          if (_resultTitle.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _resultTitle,
-                    style: const TextStyle(
-                        fontSize: 18.0, fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () => _pickImage(ImageSource.gallery),
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12.0)),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: _selectedImage != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+                              if (_isLoading)
+                                Container(
+                                  color: Colors.black54,
+                                  child: Center(
+                                      child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                                        const SizedBox(height: 8),
+                                        Text(AppLocalizations.of(context)?.translate('loading_text') ?? 'Analyzing image...', style: const TextStyle(color: Colors.white)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 8),
+                              Text(AppLocalizations.of(context)?.translate('upload_text') ?? 'Click to upload image', style: TextStyle(color: Colors.grey.shade600)),
+                            ],
+                          ),
                   ),
-                  const SizedBox(height: 10.0),
-                  Text(_resultDescription),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(icon: const Icon(Icons.photo_library), onPressed: () => _pickImage(ImageSource.gallery)),
+                  IconButton(icon: const Icon(Icons.camera_alt), onPressed: () => _pickImage(ImageSource.camera)),
                 ],
               ),
-            ),
-        ],
+
+              const SizedBox(height: 12),
+              ElevatedButton(onPressed: _selectedImage != null && !_isLoading ? _identifyBreed : null, child: Text(AppLocalizations.of(context)!.translate('identify_button'))),
+
+              const SizedBox(height: 16),
+              if (_resultTitle.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12.0)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(_resultTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text(_resultDescription)]),
+                ),
+
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_error!),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          setState(() {
+                            _error = null;
+                          });
+                          await _initializeClassifier();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
