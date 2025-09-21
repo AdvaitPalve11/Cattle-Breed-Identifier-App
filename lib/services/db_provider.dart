@@ -5,9 +5,8 @@ import 'package:sqflite/sqflite.dart';
 import '../models/prediction.dart';
 
 class DBProvider {
-  static final DBProvider _instance = DBProvider._internal();
-  factory DBProvider() => _instance;
   DBProvider._internal();
+  static final DBProvider db = DBProvider._internal();
 
   static Database? _database;
 

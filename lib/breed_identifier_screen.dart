@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/breed_classifier.dart';
@@ -48,7 +48,7 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
       // Log the detailed error for developers, but keep the UI message simple.
       debugPrint('Failed to initialize model: $e\n$trace');
       setState(() {
-        _error = 'Failed to initialize model.';
+        _error = AppLocalizations.of(context)?.translate('model_load_failed');
       });
     } finally {
       if (mounted) {
@@ -92,7 +92,7 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
 
     if (_classifier == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Model not initialized')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.translate('model_not_initialized'))),
       );
       return;
     }
@@ -109,55 +109,68 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
       final result = await _classifier!.classifyImage(file);
       setState(() {
         _resultTitle = result['breed'] ?? 'Unknown';
-        _resultDescription = 'Confidence: ${result['confidence']}%';
+        final confidenceVal = double.tryParse(result['confidence'] ?? '0.0') ?? 0.0;
+        _resultDescription = 'Confidence: ${confidenceVal.toStringAsFixed(1)}%';
       });
-      // Save to local DB (copy image into app documents so it persists)
-      try {
-        final appDoc = await getApplicationDocumentsDirectory();
-        final filename = path.basename(file.path);
-        final targetPath = path.join(appDoc.path, 'saved_images');
-        final targetDir = Directory(targetPath);
-        if (!await targetDir.exists()) await targetDir.create(recursive: true);
-        
-        // Use copy() for more efficient file handling instead of reading into memory.
-        final savedImageFile = await file.copy(path.join(targetPath, filename));
+      
+      // Save the successful prediction to the database.
+      _savePrediction(result, file);
 
-        final confidenceVal = double.tryParse(result['confidence'] ?? '') ?? 0.0;
-        final p = Prediction(breed: _resultTitle, confidence: confidenceVal, imagePath: savedImageFile.path, timestamp: DateTime.now().millisecondsSinceEpoch);
-        // Use a singleton instance of the DB provider to avoid re-creation.
-        final id = await DBProvider.db.insertPrediction(p);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved result (id: $id)')));
-        }
-      } catch (dbE, trace) {
-        // Non-fatal: log and show snack
-        debugPrint('Failed to save result: $dbE\n$trace');
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save result: $dbE')));
-      }
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        // Show a user-friendly error message instead of the raw exception.
+        _error = AppLocalizations.of(context)!.translate('api_error');
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.translate('api_error'))),
-        );
-      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Saves the prediction result and a copy of the image to the local database.
+  Future<void> _savePrediction(Map<String, String> result, File imageFile) async {
+    try {
+      final appDoc = await getApplicationDocumentsDirectory();
+      // Generate a unique filename to prevent overwriting existing images.
+      final fileExtension = path.extension(imageFile.path);
+      final uniqueFilename = '${const Uuid().v4()}$fileExtension';
+      final targetPath = path.join(appDoc.path, 'saved_images');
+      final targetDir = Directory(targetPath);
+      if (!await targetDir.exists()) await targetDir.create(recursive: true);
+      
+      // Use copy() for more efficient file handling.
+      final savedImageFile = await imageFile.copy(path.join(targetPath, uniqueFilename));
+
+      final confidenceVal = double.tryParse(result['confidence'] ?? '') ?? 0.0;
+      final prediction = Prediction(
+          breed: result['breed'] ?? 'Unknown',
+          confidence: confidenceVal,
+          imagePath: savedImageFile.path,
+          timestamp: DateTime.now().millisecondsSinceEpoch);
+
+      final id = await DBProvider.db.insertPrediction(prediction);
+      if (mounted) {
+        final message = AppLocalizations.of(context)!.translate('saved_result').replaceFirst('{id}', id.toString());
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (dbE, trace) {
+      debugPrint('Failed to save result: $dbE\n$trace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.translate('save_error'))));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isInitializing) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Initializing model...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context)?.translate('initializing_model') ?? 'Initializing model...'),
           ],
         ),
       );
@@ -171,20 +184,19 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 48),
             const SizedBox(height: 16),
-            Text('Failed to load the breed identifier. Please check your connection and try again. Error: $_error', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '${AppLocalizations.of(context)?.translate('model_load_error_prefix') ?? 'Failed to load the breed identifier.'}\nError: $_error',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: _initializeClassifier, child: const Text('Retry')),
+            ElevatedButton(onPressed: _initializeClassifier, child: Text(AppLocalizations.of(context)?.translate('retry_button') ?? 'Retry')),
           ]),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.translate('app_name') ?? 'Cattle Breed App'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+    return SafeArea(
+      child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -261,9 +273,9 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(8)),
                   child: Text(
-                    'An error occurred during identification: $_error',
+                    _error!,
                     style: TextStyle(color: Colors.red.shade900),
                   ),
                 ),
@@ -271,7 +283,6 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

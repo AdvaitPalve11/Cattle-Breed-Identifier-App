@@ -22,7 +22,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final list = await DBProvider().getAllPredictions();
+    final list = await DBProvider.db.getAllPredictions();
     setState(() {
       _items = list;
       _loading = false;
@@ -30,7 +30,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _delete(int id) async {
-    await DBProvider().deletePrediction(id);
+    await DBProvider.db.deletePrediction(id);
     await _load();
   }
 
