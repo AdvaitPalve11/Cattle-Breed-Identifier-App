@@ -1,113 +1,79 @@
 # Miscellaneous
 *.class
+*.db
+*.db-journal
 *.log
 *.pyc
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
+# Flutter/Dart IDE specific
+.dart_tool/
 .idea/
+.vscode/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-# Created by https://www.toptal.com/developers/gitignore/api/flutter
-# Edit at https://www.toptal.com/developers/gitignore?templates=flutter
-
-### Flutter ###
-# Flutter/Dart/Pub related
-**/doc/api/
-.dart_tool/
+# Flutter
 .flutter-plugins
 .flutter-plugins-dependencies
-.fvm/flutter_sdk
 .packages
-.pub-cache/
-.pub/
-build/
-coverage/
-lib/generated_plugin_registrant.dart
-# For library packages, don’t commit the pubspec.lock file.
-# Regenerating the pubspec.lock file lets you test your package against the latest compatible versions of its dependencies.
-# See https://dart.dev/guides/libraries/private-files#pubspeclock
-#pubspec.lock
+/build/
 
-# Android related
-**/android/**/gradle-wrapper.jar
-**/android/.gradle
-**/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
-**/android/key.properties
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
+# Android
+/android/app/src/main/assets/flutter_assets/
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/gradle/
+/android/local.properties
+/android/key.properties
+/android/app/google-services.json
+*.jks
+*.keystore
 
-# iOS/XCode related
-**/ios/**/*.mode1v3
-**/ios/**/*.mode2v3
-**/ios/**/*.moved-aside
-**/ios/**/*.pbxuser
-**/ios/**/*.perspectivev3
-**/ios/**/*sync/
-**/ios/**/.sconsign.dblite
-**/ios/**/.tags*
-**/ios/**/.vagrant/
-**/ios/**/DerivedData/
-**/ios/**/Icon?
-**/ios/**/Pods/
-**/ios/**/.symlinks/
-**/ios/**/profile
-**/ios/**/xcuserdata
-**/ios/.generated/
-**/ios/Flutter/.last_build_id
-**/ios/Flutter/App.framework
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/app.flx
-**/ios/Flutter/app.zip
-**/ios/Flutter/flutter_assets/
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
+# iOS
+/ios/Pods/
+/ios/Flutter/App.framework
+/ios/Flutter/engine
+/ios/Flutter/flutter_assets
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/info.plist
+/ios/.symlinks/
+/ios/Runner/GeneratedPluginRegistrant.*
+/ios/Runner/Info.plist
+/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+/ios/Runner.xcodeproj/project.xcworkspace/
+/ios/Runner.xcodeproj/xcuserdata/
+/ios/Flutter/Debug.xcconfig
+/ios/Flutter/Release.xcconfig
+/ios/Runner/Runner-Bridging-Header.h
+/ios/Runner/Runner-Swift.h
 
-# Exceptions to above rules.
-!**/ios/**/default.mode1v3
-!**/ios/**/default.mode2v3
-!**/ios/**/default.pbxuser
-!**/ios/**/default.perspectivev3
-!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+# Linux
+/linux/build/
+/linux/flutter/ephemeral/
+/linux/.vs/
+/linux/CMakeLists.txt.user
 
-# End of https://www.toptal.com/developers/gitignore/api/flutter
+# macOS
+/macos/build/
+/macos/Flutter/ephemeral/
+/macos/Pods/
+/macos/.symlinks/
+/macos/Runner/GeneratedPluginRegistrant.*
+/macos/Runner/Info.plist
+/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+/macos/Runner.xcodeproj/project.xcworkspace/
+/macos/Runner.xcodeproj/xcuserdata/
+/macos/Flutter/Debug.xcconfig
+/macos/Flutter/Release.xcconfig
+
+# Windows
+/windows/build/
+/windows/flutter/ephemeral/
+/windows/.vs/
+/windows/CMakeLists.txt.user
+/windows/flutter/generated_plugins.cmake
