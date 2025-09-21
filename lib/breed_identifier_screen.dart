@@ -1,12 +1,18 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/breed_classifier.dart';
 import '../services/db_provider.dart';
 import '../models/prediction.dart';
 import 'app_localizations.dart';
+
+// Constants for image processing to improve readability and maintenance.
+const double _kImageMaxWidth = 800;
+const double _kImageMaxHeight = 800;
+const int _kImageQuality = 85;
 
 class BreedIdentifierScreen extends StatefulWidget {
   const BreedIdentifierScreen({super.key});
@@ -39,9 +45,10 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
         labelsPath: 'assets/model/labels.txt',
       );
     } catch (e, trace) {
-      // StackTrace is useful for debugging but not for the user.
+      // Log the detailed error for developers, but keep the UI message simple.
+      debugPrint('Failed to initialize model: $e\n$trace');
       setState(() {
-        _error = 'Failed to initialize model: $e\n$trace';
+        _error = 'Failed to initialize model.';
       });
     } finally {
       if (mounted) {
@@ -60,7 +67,12 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+    final image = await picker.pickImage(
+      source: source,
+      maxWidth: _kImageMaxWidth,
+      maxHeight: _kImageMaxHeight,
+      imageQuality: _kImageQuality,
+    );
     if (image == null) return;
     setState(() {
       _selectedImage = image;
@@ -106,17 +118,20 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
         final targetPath = path.join(appDoc.path, 'saved_images');
         final targetDir = Directory(targetPath);
         if (!await targetDir.exists()) await targetDir.create(recursive: true);
-        final targetFile = File(path.join(targetPath, filename));
-        await targetFile.writeAsBytes(await file.readAsBytes());
+        
+        // Use copy() for more efficient file handling instead of reading into memory.
+        final savedImageFile = await file.copy(path.join(targetPath, filename));
 
         final confidenceVal = double.tryParse(result['confidence'] ?? '') ?? 0.0;
-        final p = Prediction(breed: _resultTitle, confidence: confidenceVal, imagePath: targetFile.path, timestamp: DateTime.now().millisecondsSinceEpoch);
-        final id = await DBProvider().insertPrediction(p);
+        final p = Prediction(breed: _resultTitle, confidence: confidenceVal, imagePath: savedImageFile.path, timestamp: DateTime.now().millisecondsSinceEpoch);
+        // Use a singleton instance of the DB provider to avoid re-creation.
+        final id = await DBProvider.db.insertPrediction(p);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved result (id: $id)')));
         }
-      } catch (dbE) {
+      } catch (dbE, trace) {
         // Non-fatal: log and show snack
+        debugPrint('Failed to save result: $dbE\n$trace');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save result: $dbE')));
       }
     } catch (e) {

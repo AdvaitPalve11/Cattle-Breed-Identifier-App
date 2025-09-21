@@ -21,6 +21,7 @@ This Flutter application helps farmers and cattle enthusiasts identify the breed
 1.  **Clone the repository:**
     ```sh
     git clone https://github.com/your-username/cattle_breed_app.git
+    # Note: Replace "your-username" with your actual GitHub username or organization.
     cd cattle_breed_app
     ```
 
@@ -41,7 +42,7 @@ This project requires a consistent Android toolchain across developers and CI. D
 - JDK: AdoptOpenJDK / Temurin 17 (example path used in this repo):
   `C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot`
 - Gradle wrapper: 8.7 (configured in `android/gradle/wrapper/gradle-wrapper.properties`)
-- Android Gradle Plugin (AGP): 8.2.1 (configured in `android/settings.gradle.kts` plugins block)
+- Android Gradle Plugin (AGP): 8.6.0 (configured in `android/settings.gradle.kts` plugins block)
 - Jetifier: disabled (`android/gradle.properties`: `android.enableJetifier=false`). Most modern plugins and libraries are AndroidX-ready; disabling Jetifier avoids a Jetify transform error seen when mixing toolchains.
 
 If you run into build errors related to Java versions, ensure your system's `JAVA_HOME` points to JDK 17 and run `cd android && .\\gradlew.bat --stop` to restart Gradle daemons.
