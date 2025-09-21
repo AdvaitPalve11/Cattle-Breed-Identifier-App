@@ -8,8 +8,8 @@ class LocaleProvider extends ChangeNotifier {
   static const String _prefsKey = 'selected_locale';
 
   LocaleProvider() {
-    // Load saved locale on initialization
-    _loadSavedLocale();
+    // The locale is now loaded in main.dart before runApp
+    // to prevent a language flicker on startup.
   }
 
   Locale get locale => _locale ?? const Locale('en', '');
@@ -36,11 +36,13 @@ class LocaleProvider extends ChangeNotifier {
   }
 
   // Load saved locale from SharedPreferences
-  Future<void> _loadSavedLocale() async {
+  Future<void> loadSavedLocale() async {
     final prefs = await SharedPreferences.getInstance();
     final savedLanguageCode = prefs.getString(_prefsKey);
     if (savedLanguageCode != null) {
-      setLocale(Locale(savedLanguageCode, ''));
+      _log.info('Loaded saved locale: $savedLanguageCode');
+      _locale = Locale(savedLanguageCode, '');
+      notifyListeners(); // Notify to update UI if needed, though it's pre-runApp
     }
   }
 

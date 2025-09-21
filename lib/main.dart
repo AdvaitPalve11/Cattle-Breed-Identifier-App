@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 // on non-web platforms. We'll call the debug helper only on mobile platforms.
 import 'services/breed_classifier_mobile.dart' as mobile_impl;
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize logging
@@ -24,6 +24,10 @@ Future<void> main() async {
   
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Pre-load the locale to avoid UI flicker
+  final localeProvider = LocaleProvider();
+  await localeProvider.loadSavedLocale();
 
   // In debug mode, try to load the interpreter early and log tensor info for diagnostics
   assert(() {
@@ -59,7 +63,7 @@ Future<void> main() async {
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => LocaleProvider(),
+      create: (_) => localeProvider,
       child: const CattleBreedApp(),
     ),
   );

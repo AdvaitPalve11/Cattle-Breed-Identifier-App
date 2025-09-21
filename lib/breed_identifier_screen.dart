@@ -1,7 +1,11 @@
 import 'dart:io';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/breed_classifier.dart';
+import '../services/db_provider.dart';
+import '../models/prediction.dart';
 import 'app_localizations.dart';
 
 class BreedIdentifierScreen extends StatefulWidget {
@@ -17,6 +21,7 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
   String _resultTitle = '';
   String _resultDescription = '';
   String? _error;
+  bool _isInitializing = true;
   BreedClassifier? _classifier;
 
   @override
@@ -26,16 +31,24 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
   }
 
   Future<void> _initializeClassifier() async {
+    if (!mounted) return;
+    setState(() => _isInitializing = true);
     try {
       _classifier = await BreedClassifier.create(
         modelPath: 'assets/model/cattle_breed_model.tflite',
         labelsPath: 'assets/model/labels.txt',
       );
-    } catch (e) {
-      final trace = StackTrace.current.toString();
+    } catch (e, trace) {
+      // StackTrace is useful for debugging but not for the user.
       setState(() {
         _error = 'Failed to initialize model: $e\n$trace';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     }
   }
 
@@ -86,6 +99,26 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
         _resultTitle = result['breed'] ?? 'Unknown';
         _resultDescription = 'Confidence: ${result['confidence']}%';
       });
+      // Save to local DB (copy image into app documents so it persists)
+      try {
+        final appDoc = await getApplicationDocumentsDirectory();
+        final filename = path.basename(file.path);
+        final targetPath = path.join(appDoc.path, 'saved_images');
+        final targetDir = Directory(targetPath);
+        if (!await targetDir.exists()) await targetDir.create(recursive: true);
+        final targetFile = File(path.join(targetPath, filename));
+        await targetFile.writeAsBytes(await file.readAsBytes());
+
+        final confidenceVal = double.tryParse(result['confidence'] ?? '') ?? 0.0;
+        final p = Prediction(breed: _resultTitle, confidence: confidenceVal, imagePath: targetFile.path, timestamp: DateTime.now().millisecondsSinceEpoch);
+        final id = await DBProvider().insertPrediction(p);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved result (id: $id)')));
+        }
+      } catch (dbE) {
+        // Non-fatal: log and show snack
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save result: $dbE')));
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -102,6 +135,35 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isInitializing) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Initializing model...'),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null && _classifier == null) {
+      // Fatal error during initialization
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text('Failed to load the breed identifier. Please check your connection and try again. Error: $_error', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 24),
+            ElevatedButton(onPressed: _initializeClassifier, child: const Text('Retry')),
+          ]),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)?.translate('app_name') ?? 'Cattle Breed App'),
@@ -179,26 +241,15 @@ class _BreedIdentifierScreenState extends State<BreedIdentifierScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(_resultTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text(_resultDescription)]),
                 ),
 
-              if (_error != null) ...[
+              // Show non-fatal errors here (e.g., classification error)
+              if (_error != null && _classifier != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_error!),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          setState(() {
-                            _error = null;
-                          });
-                          await _initializeClassifier();
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
+                  child: Text(
+                    'An error occurred during identification: $_error',
+                    style: TextStyle(color: Colors.red.shade900),
                   ),
                 ),
               ],
